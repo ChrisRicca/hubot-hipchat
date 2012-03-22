@@ -6,9 +6,24 @@ Wobot   = require('wobot').Bot
 
 class HipChat extends Adapter
   send: (user, strings...) ->
-    for str in strings
-      @bot.message user.reply_to, str
+    if user.reply_to
+      for str in strings
+        @bot.message user.reply_to, str
+    else
+        @messageRoomViaAPI user.room, strings
 
+  messageRoomViaAPI: (room, strings...) ->
+    options =
+      room_id : room
+      from : @options.name
+      color : @options.color
+    
+    for str in strings
+      options.message = "#{str}"
+      @post '/v1/rooms/message', options, (err,response) ->
+        if not err
+          console.log "posted to #{ room }: ", response
+    
   reply: (user, strings...) ->
     for str in strings
       @send user, "@\"#{user.name}\" #{str}"
@@ -23,6 +38,7 @@ class HipChat extends Adapter
       rooms:    process.env.HUBOT_HIPCHAT_ROOMS or "@All"
       debug:    process.env.HUBOT_HIPCHAT_DEBUG or false
       host:     process.env.HUBOT_HIPCHAT_HOST or null
+      color:    process.env.HUBOT_HIPCHAT_COLOR or 'yellow'
 
     console.log "Options:", @options
     bot = new Wobot(jid: @options.jid, name: @options.name, password: @options.password, debug: @options.debug == 'true', host: @options.host)
