@@ -127,14 +127,13 @@ class HipChat extends Adapter
       "headers": headers
 
     if method is "POST"
-      body.auth_token = @options.token
       body = JSON.stringify(body)
       headers["Content-Type"] = "application/json"
 
       body = new Buffer(body)
       options.headers["Content-Length"] = body.length
-    else
-      options.path += "?auth_token=#{@options.token}"
+      
+    options.path += "?auth_token=#{@options.token}"
 
     request = HTTPS.request options, (response) ->
       data = ""
