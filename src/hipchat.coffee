@@ -3,12 +3,34 @@ Adapter = require('hubot').Adapter
 TextMessage = require('hubot').TextMessage
 HTTPS = require 'https'
 Wobot = require('wobot').Bot
+querystring = require 'querystring'
 
 class HipChat extends Adapter
   send: (user, strings...) ->
-    for str in strings
-      @bot.message user.reply_to, str
+    console.log('in send:')
+    console.log('user => ' + JSON.stringify(user))
+    console.log('strings => ' + JSON.stringify(strings))
+    
+    if user.reply_to
+      for str in strings
+        @bot.message user.reply_to, str
+    else
+        @messageRoomViaAPI user.room, strings
+        
 
+  messageRoomViaAPI: (room, strings...) ->
+    options =
+      room_id : room
+      from : @options.name
+      color : @options.color
+    
+    for str in strings
+      console.log("str is #{ JSON.stringify(str) }")
+      options.message = "#{str}"
+      @post '/v1/rooms/message', options, (err,response) ->
+        if not err
+          console.log "posted to #{ room }: ", response
+    
   reply: (user, strings...) ->
     for str in strings
       @send user, "@#{user.name.replace(' ', '')} #{str}"
@@ -22,6 +44,8 @@ class HipChat extends Adapter
       rooms:    process.env.HUBOT_HIPCHAT_ROOMS or "All"
       debug:    process.env.HUBOT_HIPCHAT_DEBUG or false
       host:     process.env.HUBOT_HIPCHAT_HOST or null
+      color:    process.env.HUBOT_HIPCHAT_COLOR or 'yellow'
+      
     console.log "HipChat adapter options:", @options
 
     # create Wobot bot object
@@ -134,15 +158,22 @@ class HipChat extends Adapter
       "method" : method
       "headers": headers
 
-    if method is "POST"
-      body.auth_token = @options.token
-      body = JSON.stringify(body)
-      headers["Content-Type"] = "application/json"
-
-      body = new Buffer(body)
+    if method is "POST"      
+      console.log('about to serialize body:')
+      
+      serialize = (obj) =>
+        str = []
+        for p of obj
+           str.push(encodeURIComponent(p) + "=" + encodeURIComponent(obj[p]))
+        return str.join("&")
+      
+      body = serialize(body)
+      console.log(body) 
+      
       options.headers["Content-Length"] = body.length
-    else
-      options.path += "?auth_token=#{@options.token}"
+      options.headers["Content-Type"] = 'application/x-www-form-urlencoded'
+    
+    options.path += "?auth_token=#{@options.token}"
 
     request = HTTPS.request options, (response) ->
       data = ""
@@ -151,7 +182,7 @@ class HipChat extends Adapter
       response.on "end", ->
         if response.statusCode >= 400
           console.log "HipChat API error: #{response.statusCode}"
-
+          console.log data
         try
           callback null, JSON.parse(data)
         catch err
@@ -160,7 +191,8 @@ class HipChat extends Adapter
         callback err, null
 
     if method is "POST"
-      request.end(body, 'binary')
+      request.write(body)
+      request.end()
     else
       request.end()
 
