@@ -45,6 +45,7 @@ class HipChat extends Adapter
       debug:    process.env.HUBOT_HIPCHAT_DEBUG or false
       host:     process.env.HUBOT_HIPCHAT_HOST or null
       color:    process.env.HUBOT_HIPCHAT_COLOR or 'yellow'
+      name:     process.env.HUBOT_HIPCHAT_NAME or 'hubot'
       
     console.log "HipChat adapter options:", @options
 
